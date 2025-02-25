@@ -435,7 +435,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1047618834}
-  - component: {fileID: 1047618835}
+  - component: {fileID: 1047618837}
   - component: {fileID: 1047618836}
   m_Layer: 0
   m_Name: NoiseMapGenerator
@@ -459,22 +459,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1047618835
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1047618833}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a4f3223237f737c45bfd1261a5c0dbbc, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  noiseMapWidth: 100
-  noiseMapHeight: 100
-  noiseScale: 0
-  autoUpdate: 1
 --- !u!114 &1047618836
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -488,6 +472,27 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   targetRenderer: {fileID: 2052648092}
+--- !u!114 &1047618837
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1047618833}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a4f3223237f737c45bfd1261a5c0dbbc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  noiseMapWidth: 100
+  noiseMapHeight: 100
+  noiseScale: 25
+  mapSeed: 1
+  numOctaves: 4
+  noisePersistence: 1
+  lacunarity: 2
+  offset: {x: -4.09, y: -0.74}
+  autoUpdate: 1
 --- !u!1 &2052648090
 GameObject:
   m_ObjectHideFlags: 0
