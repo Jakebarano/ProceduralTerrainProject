@@ -487,12 +487,19 @@ MonoBehaviour:
   noiseMapWidth: 100
   noiseMapHeight: 100
   noiseScale: 25
-  mapSeed: 1
+  mapSeed: 23
   numOctaves: 4
-  noisePersistence: 1
+  noisePersistence: 0.5
   lacunarity: 2
   offset: {x: -4.09, y: -0.74}
   autoUpdate: 1
+  terrainRegions:
+  - name: Grass
+    height: 1
+    colour: {r: 0.03127098, g: 1, b: 0, a: 0}
+  - name: Watter
+    height: 0.4
+    colour: {r: 0, g: 0.4834659, b: 0.93333334, a: 0}
 --- !u!1 &2052648090
 GameObject:
   m_ObjectHideFlags: 0

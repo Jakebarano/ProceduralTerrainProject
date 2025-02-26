@@ -17,11 +17,20 @@ public class NoiseMapGenerator : MonoBehaviour
     
     //Editor+GUI params
     public bool autoUpdate  = true;
+    public TerrainData[] terrainRegions;
     
     public void GenerateMap()
     {
         float[,] noiseMap = CreateNoise.GenerateANoiseMap(noiseMapWidth, noiseMapHeight,  mapSeed, noiseScale, numOctaves, noisePersistence, lacunarity, offset);
 
+        for (int y = 0; y < noiseMapHeight; y++)
+        {
+            for (int x = 0; x < noiseMapWidth; x++)
+            {
+                float currentHeight = noiseMap[x, y];
+                
+            }
+        }
         ApplyMap chunk = FindFirstObjectByType<ApplyMap>();
         chunk.DrawNoiseMap(noiseMap);
     }
@@ -64,4 +73,12 @@ public class NoiseMapGenerator : MonoBehaviour
             lacunarity = lacunarityMinimum;
         }
     }
+}
+
+[System.Serializable]
+public struct TerrainData
+{
+    public string name;
+    public float height;
+    public Color colour;  //could change this to a color.
 }
