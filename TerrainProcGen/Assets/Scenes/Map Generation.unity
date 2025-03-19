@@ -484,22 +484,38 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a4f3223237f737c45bfd1261a5c0dbbc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  drawMode: 1
   noiseMapWidth: 100
   noiseMapHeight: 100
   noiseScale: 25
-  mapSeed: 23
+  mapSeed: 94
   numOctaves: 4
   noisePersistence: 0.5
   lacunarity: 2
   offset: {x: -4.09, y: -0.74}
   autoUpdate: 1
   terrainRegions:
-  - name: Grass
-    height: 1
-    colour: {r: 0.03127098, g: 1, b: 0, a: 0}
-  - name: Watter
+  - name: Deepwater
+    height: 0.28
+    tColor: {r: 0.06755074, g: 0.3565095, b: 0.4339623, a: 0}
+  - name: Water
     height: 0.4
-    colour: {r: 0, g: 0.4834659, b: 0.93333334, a: 0}
+    tColor: {r: 0.12246352, g: 0.50036854, b: 0.6037736, a: 0}
+  - name: Sand
+    height: 0.46
+    tColor: {r: 0.735849, g: 0.622187, b: 0.26032394, a: 0}
+  - name: Grass
+    height: 0.55
+    tColor: {r: 0.11454255, g: 0.6226415, b: 0.21453957, a: 0}
+  - name: Wild Grass
+    height: 0.63
+    tColor: {r: 0.242969, g: 0.49056602, b: 0.3254929, a: 0}
+  - name: Mountain Rock
+    height: 0.79
+    tColor: {r: 0.4811321, g: 0.25090602, b: 0.088510156, a: 0}
+  - name: Snowy peak
+    height: 1
+    tColor: {r: 1, g: 1, b: 1, a: 0}
 --- !u!1 &2052648090
 GameObject:
   m_ObjectHideFlags: 0
