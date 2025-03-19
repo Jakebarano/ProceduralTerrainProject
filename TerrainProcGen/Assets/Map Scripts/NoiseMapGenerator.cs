@@ -3,6 +3,8 @@ using UnityEngine;
 
 public class NoiseMapGenerator : MonoBehaviour
 {
+    public enum DrawMode {NoiseMap, ColorMap, Voxel} //leave a third option as the voxel mode.
+    public DrawMode drawMode;
     //Basic Params
     public int noiseMapWidth = 25;
     public int noiseMapHeight = 25;
@@ -22,17 +24,41 @@ public class NoiseMapGenerator : MonoBehaviour
     public void GenerateMap()
     {
         float[,] noiseMap = CreateNoise.GenerateANoiseMap(noiseMapWidth, noiseMapHeight,  mapSeed, noiseScale, numOctaves, noisePersistence, lacunarity, offset);
-
+        
+        Color[] colorMap = new Color[noiseMapWidth * noiseMapHeight]; //1D mapping for colors
+        
         for (int y = 0; y < noiseMapHeight; y++)
         {
             for (int x = 0; x < noiseMapWidth; x++)
             {
+                //set the current heights
                 float currentHeight = noiseMap[x, y];
                 
+                for (int i = 0; i < terrainRegions.Length; i++)
+                {
+                    if (currentHeight < terrainRegions[i].height)
+                    {
+                        colorMap[y * noiseMapWidth + x] = terrainRegions[i].tColor;
+                        break;
+                    }
+                }
             }
         }
         ApplyMap chunk = FindFirstObjectByType<ApplyMap>();
-        chunk.DrawNoiseMap(noiseMap);
+        if (drawMode == DrawMode.NoiseMap)
+        {
+            chunk.DrawMapTexture(MapTextureGenerator.TextureFromHeightMap(noiseMap));
+        }
+
+        if (drawMode == DrawMode.ColorMap)
+        {
+            chunk.DrawMapTexture(MapTextureGenerator.TextureFromColorMap(colorMap, noiseMapWidth, noiseMapHeight));
+        }
+
+        if (drawMode == DrawMode.Voxel)
+        {
+            //TODO: Setup Voxels and do a voxel mode.
+        }
     }
     
     //Min-Max params
@@ -80,5 +106,5 @@ public struct TerrainData
 {
     public string name;
     public float height;
-    public Color colour;  //could change this to a color.
+    public Color tColor;  //could change this to a texture?.
 }
