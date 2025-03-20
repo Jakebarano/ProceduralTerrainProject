@@ -3,11 +3,20 @@ using UnityEngine;
 
 public class NoiseMapGenerator : MonoBehaviour
 {
-    public enum DrawMode {NoiseMap, ColorMap, Voxel} //leave a third option as the voxel mode.
+    //Generation Mode
+    public enum DrawMode {NoiseMap, ColorMap, Mesh, Voxel} //leave a third option as the voxel mode.
     public DrawMode drawMode;
+    
     //Basic Params
-    public int noiseMapWidth = 25;
-    public int noiseMapHeight = 25;
+    private const int mapChunkSize = 241;
+    [Range(0, 6)]
+    public int levelOfDetail;
+    
+    
+    //TODO: set these up to be used later depending on mode.
+    // public int noiseMapWidth = 25;
+    // public int noiseMapHeight = 25;
+    
     public float noiseScale = 0.03f;
     
     //Advanced Params
@@ -15,21 +24,30 @@ public class NoiseMapGenerator : MonoBehaviour
     public int numOctaves = 4;
     [Range(0,1)] public float noisePersistence = 0.5f;
     public float lacunarity = 2.0f;
+    
     public Vector2 offset = new Vector2(0.0f, 0.0f);
+    
+    public float MeshHeightMultiplier = 2f;
+    public AnimationCurve meshHeightCurve;
     
     //Editor+GUI params
     public bool autoUpdate  = true;
     public TerrainData[] terrainRegions;
+
+    public void ToggleAutoUpdate()
+    {
+        autoUpdate = !autoUpdate;
+    }
     
     public void GenerateMap()
     {
-        float[,] noiseMap = CreateNoise.GenerateANoiseMap(noiseMapWidth, noiseMapHeight,  mapSeed, noiseScale, numOctaves, noisePersistence, lacunarity, offset);
+        float[,] noiseMap = CreateNoise.GenerateANoiseMap(mapChunkSize, mapChunkSize,  mapSeed, noiseScale, numOctaves, noisePersistence, lacunarity, offset);
         
-        Color[] colorMap = new Color[noiseMapWidth * noiseMapHeight]; //1D mapping for colors
+        Color[] colorMap = new Color[mapChunkSize * mapChunkSize]; //1D mapping for colors
         
-        for (int y = 0; y < noiseMapHeight; y++)
+        for (int y = 0; y < mapChunkSize; y++)
         {
-            for (int x = 0; x < noiseMapWidth; x++)
+            for (int x = 0; x < mapChunkSize; x++)
             {
                 //set the current heights
                 float currentHeight = noiseMap[x, y];
@@ -38,7 +56,7 @@ public class NoiseMapGenerator : MonoBehaviour
                 {
                     if (currentHeight < terrainRegions[i].height)
                     {
-                        colorMap[y * noiseMapWidth + x] = terrainRegions[i].tColor;
+                        colorMap[y * mapChunkSize + x] = terrainRegions[i].tColor;
                         break;
                     }
                 }
@@ -52,7 +70,12 @@ public class NoiseMapGenerator : MonoBehaviour
 
         if (drawMode == DrawMode.ColorMap)
         {
-            chunk.DrawMapTexture(MapTextureGenerator.TextureFromColorMap(colorMap, noiseMapWidth, noiseMapHeight));
+            chunk.DrawMapTexture(MapTextureGenerator.TextureFromColorMap(colorMap, mapChunkSize, mapChunkSize));
+        }
+
+        if (drawMode == DrawMode.Mesh)
+        {
+            chunk.DrawMesh(MeshGenerator.GenerateTerrainMesh(noiseMap, MeshHeightMultiplier, meshHeightCurve, levelOfDetail), MapTextureGenerator.TextureFromColorMap(colorMap, mapChunkSize, mapChunkSize));
         }
 
         if (drawMode == DrawMode.Voxel)
@@ -70,14 +93,16 @@ public class NoiseMapGenerator : MonoBehaviour
     private void OnValidate()
     {
         //Validate Param values, this is an easy approach.
-        if (noiseMapWidth < noiseMapMinAxisSize)
-        {
-            noiseMapWidth = noiseMapMinAxisSize;
-        }
-        if (noiseMapHeight < noiseMapMinAxisSize)
-        {
-            noiseMapHeight = noiseMapMinAxisSize;
-        }
+        
+        //Note: after the refactor for width/height these are not needed currently.
+        // if (mapChunkSize < noiseMapMinAxisSize)
+        // {
+        //     mapChunkSize = noiseMapMinAxisSize;
+        // }
+        // if (mapChunkSize < noiseMapMinAxisSize)
+        // {
+        //     mapChunkSize = noiseMapMinAxisSize;
+        // }
 
         if (noiseScale <= 0)
         {
