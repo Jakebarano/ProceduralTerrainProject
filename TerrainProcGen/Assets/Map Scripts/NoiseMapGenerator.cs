@@ -8,10 +8,9 @@ public class NoiseMapGenerator : MonoBehaviour
     public DrawMode drawMode;
     
     //Basic Params
-    private const int mapChunkSize = 241;
+    public const int mapChunkSize = 241;
     [Range(0, 6)]
     public int levelOfDetail;
-    
     
     //TODO: set these up to be used later depending on mode.
     // public int noiseMapWidth = 25;
@@ -30,7 +29,7 @@ public class NoiseMapGenerator : MonoBehaviour
     public float MeshHeightMultiplier = 2f;
     public AnimationCurve meshHeightCurve;
     
-    //Editor+GUI params
+    //Editor/GUI/UI params
     public bool autoUpdate  = true;
     public TerrainData[] terrainRegions;
 
@@ -124,6 +123,9 @@ public class NoiseMapGenerator : MonoBehaviour
             lacunarity = lacunarityMinimum;
         }
     }
+    
+    //Param Getter/Setter functions Here
+    //TODO: figure out which ones to make private and make functions.
 }
 
 [System.Serializable]
