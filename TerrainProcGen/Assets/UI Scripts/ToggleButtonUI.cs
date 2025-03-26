@@ -21,7 +21,7 @@ public class ToggleButtonUI : MonoBehaviour
     {
         if (bText != null)
         {
-            bText.text = noiseMapGenerator.autoUpdate ? "ON" : "OFF";
+            bText.text = noiseMapGenerator.autoUpdate ? "Auto Update - ON" : "Auto Update - OFF";
         }
     }
 
