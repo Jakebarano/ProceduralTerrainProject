@@ -18,16 +18,13 @@ public class NoisePersistUI : MonoBehaviour
         {
             sText.text = v.ToString("0.000");
             noiseMapGenerator.noisePersistence = v;
-        });  
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        if (noiseMapGenerator.autoUpdate)
-        {
-            noiseMapGenerator.GenerateMap();
-        }
+            
+            //auto update w/out using Update()
+            if (noiseMapGenerator.autoUpdate)
+            {
+                noiseMapGenerator.GenerateMap();
+            }
+        }); 
     }
 
 }

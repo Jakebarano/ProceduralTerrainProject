@@ -18,6 +18,12 @@ public class OffsetSlidersUI : MonoBehaviour
         {
             sXText.text = v.ToString("0.00");
             noiseMapGenerator.offset.x = v;
+            
+            //auto update w/out using Update(), only when the val changes.
+            if (noiseMapGenerator.autoUpdate)
+            {
+                noiseMapGenerator.GenerateMap();
+            }
         });  
         
         sliderY.value = noiseMapGenerator.offset.y;
@@ -27,14 +33,12 @@ public class OffsetSlidersUI : MonoBehaviour
         {
             sYText.text = v.ToString("0.00");
             noiseMapGenerator.offset.y = v;
+            
+            //auto update w/out using Update()
+            if (noiseMapGenerator.autoUpdate)
+            {
+                noiseMapGenerator.GenerateMap();
+            }
         });  
-    }
-
-    void Update()
-    {
-        if (noiseMapGenerator.autoUpdate)
-        {
-            noiseMapGenerator.GenerateMap();
-        }
     }
 }

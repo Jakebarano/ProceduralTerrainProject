@@ -2,7 +2,6 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-
 public class SeedSliderUI : MonoBehaviour
 {
     [SerializeField] NoiseMapGenerator noiseMapGenerator;
@@ -19,14 +18,12 @@ public class SeedSliderUI : MonoBehaviour
         {
             sText.text = v.ToString("0");
             noiseMapGenerator.mapSeed = (int)v;
+            
+            //auto update w/out using Update()
+            if (noiseMapGenerator.autoUpdate)
+            {
+                noiseMapGenerator.GenerateMap();
+            }
         });  
-    }
-
-    void Update()
-    {
-        if (noiseMapGenerator.autoUpdate)
-        {
-            noiseMapGenerator.GenerateMap();
-        }
     }
 }

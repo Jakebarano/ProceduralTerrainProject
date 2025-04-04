@@ -18,15 +18,13 @@ public class LODSliderUI : MonoBehaviour
         {
             sText.text = v.ToString("0");
             noiseMapGenerator.levelOfDetail = (int)v;
+            
+            //auto update w/out using Update()
+            if (noiseMapGenerator.autoUpdate)
+            {
+                noiseMapGenerator.GenerateMap();
+            }
         });  
     }
-
-    // Update is called once per frame
-    void Update()
-    {
-        if (noiseMapGenerator.autoUpdate)
-        {
-            noiseMapGenerator.GenerateMap();
-        }
-    }
+    
 }

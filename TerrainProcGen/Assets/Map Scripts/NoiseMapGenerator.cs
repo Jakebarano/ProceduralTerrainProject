@@ -126,6 +126,11 @@ public class NoiseMapGenerator : MonoBehaviour
     
     //Param Getter/Setter functions Here
     //TODO: figure out which ones to make private and make functions.
+
+    private void Start()
+    {
+        GenerateMap();
+    }
 }
 
 [System.Serializable]
