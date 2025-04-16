@@ -1,9 +1,11 @@
+using System;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class EndlessTurrain : MonoBehaviour
 {
-    public const float maxViewDist = 300;
+    public const float MAX_VIEW_DIST = 300.0f;
     public Transform viewerTransform;
 
     public static Vector2 viewerPos;
@@ -11,15 +13,28 @@ public class EndlessTurrain : MonoBehaviour
     private int aSingleChunkSize;
     private int chunksVisibleinDist;
     Dictionary<Vector2, TerrainChunk> TerrainChunksDict = new Dictionary<Vector2, TerrainChunk>();
-    
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    List<TerrainChunk> TerrainChunksVisibleSinceLastUpdate = new List<TerrainChunk>();
     void Start()
     {
-        
+        aSingleChunkSize = NoiseMapGenerator.mapChunkSize - 1;
+        chunksVisibleinDist = Mathf.RoundToInt(MAX_VIEW_DIST / aSingleChunkSize);
+    }
+
+    void Update()
+    {
+        viewerPos = new Vector2(viewerTransform.position.x, viewerTransform.position.z);
     }
 
     void UpdateVisibleChunks()
     {
+        //Remove Chunks outside the user's view distance after each update so it is not overloaded.
+        foreach (TerrainChunk chunk in TerrainChunksVisibleSinceLastUpdate)
+        {
+            chunk.SetVisible(false);
+        }
+        TerrainChunksVisibleSinceLastUpdate.Clear();
+        
+        //Load Chunks based on view distance of User. (View Distance should become a setting).
         int currChunkCoordX = Mathf.RoundToInt(viewerPos.x/aSingleChunkSize);
         int currChunkCoordY = Mathf.RoundToInt(viewerPos.y/aSingleChunkSize);
 
@@ -31,11 +46,15 @@ public class EndlessTurrain : MonoBehaviour
 
                 if (TerrainChunksDict.ContainsKey(viewedChunkCoord))
                 {
-                    //WIP some stuff will go here - past Jake
+                    TerrainChunksDict[viewedChunkCoord].UpdateChunk();
+                    if (TerrainChunksDict[viewedChunkCoord].isVisible())
+                    {
+                        TerrainChunksVisibleSinceLastUpdate.Add(TerrainChunksDict[viewedChunkCoord]);
+                    }
                 }
                 else
                 {
-                    TerrainChunksDict.Add(viewedChunkCoord, TerrainChunksDict[viewedChunkCoord]);
+                    TerrainChunksDict.Add(viewedChunkCoord, new TerrainChunk(viewedChunkCoord, aSingleChunkSize, transform));
                 }
             }
         }
@@ -43,20 +62,38 @@ public class EndlessTurrain : MonoBehaviour
 
     public class TerrainChunk
     {
+        private const float DEFAULT_PLANE_SIZE = 10.0f; //default size of a plane primitive.
         GameObject meshObject;
         Vector2 position;
-        private const float DEFAULT_PLANE_SIZE = 10.0f; //default size of a plane primative.
-
-        public TerrainChunk(Vector2 coord, int size)
+        Bounds chunkBounds;
+        public TerrainChunk(Vector2 coord, int size, Transform parentTransform)
         {
             position = coord * size;
-            Vector3 posv3 = new Vector3(position.x, 0, position.y);
-
+            Vector3 posV3 = new Vector3(position.x, 0, position.y);
+            chunkBounds = new Bounds(position, (Vector2.one * size));
+            
             meshObject = GameObject.CreatePrimitive(PrimitiveType.Plane);
-            meshObject.transform.position = posv3;
+            meshObject.transform.position = posV3;
             meshObject.transform.localScale = Vector3.one * size / DEFAULT_PLANE_SIZE;
+            meshObject.transform.SetParent(parentTransform);
+            SetVisible(false);
+        }
+
+        public void UpdateChunk()
+        {
+            float viewerDistFromNearestEdge = Mathf.Sqrt(chunkBounds.SqrDistance(viewerPos));
+            bool visibile = viewerDistFromNearestEdge <= MAX_VIEW_DIST;
+            SetVisible(visibile);
         }
         
-        //TODO: more functions here // 9:29 time stamp.
+        //Visibility functions for all terrain chunks.
+        public void SetVisible(bool visible)
+        {
+            meshObject.SetActive(visible);
+        }
+        public bool isVisible()
+        {
+            return meshObject.activeSelf;
+        }
     }
 }
