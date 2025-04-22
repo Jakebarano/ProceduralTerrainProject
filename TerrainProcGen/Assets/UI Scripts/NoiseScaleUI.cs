@@ -22,7 +22,7 @@ public class NoiseScaleUI : MonoBehaviour
             //auto update w/out using Update()
             if (noiseMapGenerator.autoUpdate)
             {
-                noiseMapGenerator.GenerateMap();
+                noiseMapGenerator.DrawMap();
             }
         });
     }

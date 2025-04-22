@@ -6,6 +6,8 @@ using UnityEngine;
 public class EndlessTurrain : MonoBehaviour
 {
     public const float MAX_VIEW_DIST = 300.0f;
+    //public int ChunksViewDistance = 4; //Use this to do view distance loading similar to LODs but with number of chunks (as a multiplier)
+    //to load around the player at a given time.
     public Transform viewerTransform;
 
     public static Vector2 viewerPos;
@@ -23,6 +25,7 @@ public class EndlessTurrain : MonoBehaviour
     void Update()
     {
         viewerPos = new Vector2(viewerTransform.position.x, viewerTransform.position.z);
+        UpdateVisibleChunks();
     }
 
     void UpdateVisibleChunks()

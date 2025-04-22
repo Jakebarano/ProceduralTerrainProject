@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class NoiseMapGenerator : MonoBehaviour
 {
@@ -26,7 +27,7 @@ public class NoiseMapGenerator : MonoBehaviour
     
     public Vector2 offset = new Vector2(0.0f, 0.0f);
     
-    public float MeshHeightMultiplier = 2f;
+    [FormerlySerializedAs("MeshHeightMultiplier")] public float meshHeightMultiplier = 2f;
     public AnimationCurve meshHeightCurve;
     
     //Editor/GUI/UI params
@@ -37,8 +38,34 @@ public class NoiseMapGenerator : MonoBehaviour
     {
         autoUpdate = !autoUpdate;
     }
+
+    public void DrawMap()
+    {
+        DrawnMapData mapData = GenerateMapData();
+        
+        ApplyMap chunk = FindFirstObjectByType<ApplyMap>();
+        if (drawMode == DrawMode.NoiseMap)
+        {
+            chunk.DrawMapTexture(MapTextureGenerator.TextureFromHeightMap(mapData.noiseMap));
+        }
+
+        if (drawMode == DrawMode.ColorMap)
+        {
+            chunk.DrawMapTexture(MapTextureGenerator.TextureFromColorMap(mapData.colorMap, mapChunkSize, mapChunkSize));
+        }
+
+        if (drawMode == DrawMode.Mesh)
+        {
+            chunk.DrawMesh(MeshGenerator.GenerateTerrainMesh(mapData.noiseMap, meshHeightMultiplier, meshHeightCurve, levelOfDetail), MapTextureGenerator.TextureFromColorMap(mapData.colorMap, mapChunkSize, mapChunkSize));
+        }
+
+        if (drawMode == DrawMode.Voxel)
+        {
+            //TODO: Setup Voxels and do a voxel mode.
+        }
+    }
     
-    public void GenerateMap()
+    DrawnMapData GenerateMapData()
     {
         float[,] noiseMap = CreateNoise.GenerateANoiseMap(mapChunkSize, mapChunkSize,  mapSeed, noiseScale, numOctaves, noisePersistence, lacunarity, offset);
         
@@ -61,26 +88,7 @@ public class NoiseMapGenerator : MonoBehaviour
                 }
             }
         }
-        ApplyMap chunk = FindFirstObjectByType<ApplyMap>();
-        if (drawMode == DrawMode.NoiseMap)
-        {
-            chunk.DrawMapTexture(MapTextureGenerator.TextureFromHeightMap(noiseMap));
-        }
-
-        if (drawMode == DrawMode.ColorMap)
-        {
-            chunk.DrawMapTexture(MapTextureGenerator.TextureFromColorMap(colorMap, mapChunkSize, mapChunkSize));
-        }
-
-        if (drawMode == DrawMode.Mesh)
-        {
-            chunk.DrawMesh(MeshGenerator.GenerateTerrainMesh(noiseMap, MeshHeightMultiplier, meshHeightCurve, levelOfDetail), MapTextureGenerator.TextureFromColorMap(colorMap, mapChunkSize, mapChunkSize));
-        }
-
-        if (drawMode == DrawMode.Voxel)
-        {
-            //TODO: Setup Voxels and do a voxel mode.
-        }
+        return new DrawnMapData(noiseMap, colorMap);
     }
     
     //Min-Max params
@@ -92,16 +100,6 @@ public class NoiseMapGenerator : MonoBehaviour
     private void OnValidate()
     {
         //Validate Param values, this is an easy approach.
-        
-        //Note: after the refactor for width/height these are not needed currently.
-        // if (mapChunkSize < noiseMapMinAxisSize)
-        // {
-        //     mapChunkSize = noiseMapMinAxisSize;
-        // }
-        // if (mapChunkSize < noiseMapMinAxisSize)
-        // {
-        //     mapChunkSize = noiseMapMinAxisSize;
-        // }
 
         if (noiseScale <= 0)
         {
@@ -122,21 +120,43 @@ public class NoiseMapGenerator : MonoBehaviour
         {
             lacunarity = lacunarityMinimum;
         }
+                
+        //Note: after the refactor for width/height these are not needed currently.
+        // if (mapChunkSize < noiseMapMinAxisSize)
+        // {
+        //     mapChunkSize = noiseMapMinAxisSize;
+        // }
+        // if (mapChunkSize < noiseMapMinAxisSize)
+        // {
+        //     mapChunkSize = noiseMapMinAxisSize;
+        // }
     }
     
     //Param Getter/Setter functions Here
-    //TODO: figure out which ones to make private and make functions.
+    //TODO: figure out which ones to make private and make functions for getting/setting here.
 
     private void Start()
     {
-        GenerateMap();
+        GenerateMapData();
     }
 }
 
-[System.Serializable]
+[Serializable]
 public struct TerrainData
 {
     public string name;
     public float height;
-    public Color tColor;  //could change this to a texture?.
+    public Color tColor;                                            //could change this to a texture?.
+}
+
+public struct DrawnMapData
+{
+    public float[,] noiseMap;                                       //height map param for perlin noise.
+    public Color[] colorMap;
+
+    public DrawnMapData(float[,] noiseMap, Color[] colorMap)
+    {
+        this.noiseMap = noiseMap;
+        this.colorMap = colorMap;
+    }
 }

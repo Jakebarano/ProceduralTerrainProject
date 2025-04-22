@@ -13,14 +13,14 @@ public class MapGenEditorButton : Editor
         {
             if (noiseMapGenerator.autoUpdate)
             {
-                noiseMapGenerator.GenerateMap();
+                noiseMapGenerator.DrawMap();
             }
         }
         
         //Update when pressed.
         if (GUILayout.Button("Generate Noise Map"))
         {
-            noiseMapGenerator.GenerateMap();
+            noiseMapGenerator.DrawMap();
         }
     }
 }

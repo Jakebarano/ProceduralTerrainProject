@@ -22,7 +22,7 @@ public class OffsetSlidersUI : MonoBehaviour
             //auto update w/out using Update(), only when the val changes.
             if (noiseMapGenerator.autoUpdate)
             {
-                noiseMapGenerator.GenerateMap();
+                noiseMapGenerator.DrawMap();
             }
         });  
         
@@ -37,7 +37,7 @@ public class OffsetSlidersUI : MonoBehaviour
             //auto update w/out using Update()
             if (noiseMapGenerator.autoUpdate)
             {
-                noiseMapGenerator.GenerateMap();
+                noiseMapGenerator.DrawMap();
             }
         });  
     }
