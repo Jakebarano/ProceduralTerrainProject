@@ -92,11 +92,12 @@ public class NoiseMapGenerator : MonoBehaviour
     }
     
     //Min-Max params
-    private int noiseMapMinAxisSize = 1;
     private float noiseScaleMin = 0.01f;
     private int octavesMinimum = 1;
     private int octavesMaximum = 28;
     private float lacunarityMinimum = 1f;
+    
+    //private int noiseMapMinAxisSize = 1;  //Depreciated w/mapsize checks (see below) that are obselete as well.
     private void OnValidate()
     {
         //Validate Param values, this is an easy approach.
