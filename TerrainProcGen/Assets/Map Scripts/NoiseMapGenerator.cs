@@ -1,4 +1,6 @@
 using System;
+using System.Threading;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -33,12 +35,48 @@ public class NoiseMapGenerator : MonoBehaviour
     //Editor/GUI/UI params
     public bool autoUpdate  = true;
     public TerrainData[] terrainRegions;
+    
+    //Thread Queue + general params
+    Queue<MapThreadInformation<DrawnMapData>> mapThreadQueue = new Queue<MapThreadInformation<DrawnMapData>>();
 
     public void ToggleAutoUpdate()
     {
         autoUpdate = !autoUpdate;
     }
 
+    //Multi-threading Logic
+    public void RqstMapData(Action<DrawnMapData> callback)
+    {
+        ThreadStart threadDelegate = delegate
+        {
+            MDataThread(callback);
+        };
+        
+        new Thread(threadDelegate).Start();
+    }
+
+    void MDataThread(Action<DrawnMapData> callback)
+    {
+        DrawnMapData mData = GenerateMapData();
+        lock (mapThreadQueue)
+        {
+            mapThreadQueue.Enqueue(new MapThreadInformation<DrawnMapData>(callback, mData));
+        }
+    }
+
+    void Update()
+    {
+        if (mapThreadQueue.Count > 0)
+        {
+            for (int i = 0; i < mapThreadQueue.Count; i++)
+            {
+                MapThreadInformation<DrawnMapData> ThreadInfo = mapThreadQueue.Dequeue();
+                ThreadInfo.callback(ThreadInfo.param);  //TIME STAMP 11:00 Episode 8 for references.
+            }
+        }
+    }
+    
+    //Map Data logic
     public void DrawMap()
     {
         DrawnMapData mapData = GenerateMapData();
@@ -96,8 +134,9 @@ public class NoiseMapGenerator : MonoBehaviour
     private int octavesMinimum = 1;
     private int octavesMaximum = 28;
     private float lacunarityMinimum = 1f;
+    //private int noiseMapMinAxisSize = 1;  //Depreciated w/mapsize checks (see below) that are obsolete as well.
     
-    //private int noiseMapMinAxisSize = 1;  //Depreciated w/mapsize checks (see below) that are obselete as well.
+    // Editor Validation Logic
     private void OnValidate()
     {
         //Validate Param values, this is an easy approach.
@@ -133,6 +172,20 @@ public class NoiseMapGenerator : MonoBehaviour
         // }
     }
     
+    //Thread Struct
+    struct MapThreadInformation<T>
+    {
+        public readonly Action<T> callback;
+        public readonly T param;
+
+        public MapThreadInformation(Action<T> callback, T param)
+        {
+            this.callback = callback;
+            this.param = param;
+        }
+    }
+    
+    
     //Param Getter/Setter functions Here
     //TODO: figure out which ones to make private and make functions for getting/setting here.
 
@@ -142,6 +195,7 @@ public class NoiseMapGenerator : MonoBehaviour
     }
 }
 
+//Data Structs
 [Serializable]
 public struct TerrainData
 {
@@ -152,8 +206,8 @@ public struct TerrainData
 
 public struct DrawnMapData
 {
-    public float[,] noiseMap;                                       //height map param for perlin noise.
-    public Color[] colorMap;
+    public readonly float[,] noiseMap;                                       //Height map param for perlin noise.
+    public readonly Color[] colorMap;                                       //These params are set to "read only" since they are simple structs where data should only be read.
 
     public DrawnMapData(float[,] noiseMap, Color[] colorMap)
     {
