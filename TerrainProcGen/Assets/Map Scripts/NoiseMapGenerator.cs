@@ -38,6 +38,7 @@ public class NoiseMapGenerator : MonoBehaviour
     
     //Thread Queue + general params
     Queue<MapThreadInformation<DrawnMapData>> mapThreadQueue = new Queue<MapThreadInformation<DrawnMapData>>();
+    Queue<MapThreadInformation<MeshData>> meshThreadQueue = new Queue<MapThreadInformation<MeshData>>();
 
     public void ToggleAutoUpdate()
     {
@@ -45,22 +46,45 @@ public class NoiseMapGenerator : MonoBehaviour
     }
 
     //Multi-threading Logic
+    
+    //2D map Request + Thread
     public void RqstMapData(Action<DrawnMapData> callback)
     {
         ThreadStart threadDelegate = delegate
         {
-            MDataThread(callback);
+            NMapDataThread(callback);
         };
         
         new Thread(threadDelegate).Start();
     }
 
-    void MDataThread(Action<DrawnMapData> callback)
+    void NMapDataThread(Action<DrawnMapData> callback)
     {
         DrawnMapData mData = GenerateMapData();
         lock (mapThreadQueue)
         {
             mapThreadQueue.Enqueue(new MapThreadInformation<DrawnMapData>(callback, mData));
+        }
+    }
+    
+    //Mesh Request + Thread
+    
+    public void RqstMeshData(DrawnMapData mapData, Action<MeshData> callback)
+    {
+        ThreadStart threadDelegate = delegate
+        {
+            MeshDataThread(mapData, callback);
+        };
+        
+        new Thread(threadDelegate).Start();
+    }
+
+    void MeshDataThread(DrawnMapData mapData, Action<MeshData> callback)
+    {
+        MeshData meshData = MeshGenerator.GenerateTerrainMesh(mapData.noiseMap, meshHeightMultiplier, meshHeightCurve, levelOfDetail);
+        lock (meshThreadQueue)
+        {
+            meshThreadQueue.Enqueue(new MapThreadInformation<MeshData>(callback, meshData));
         }
     }
 
@@ -70,8 +94,17 @@ public class NoiseMapGenerator : MonoBehaviour
         {
             for (int i = 0; i < mapThreadQueue.Count; i++)
             {
-                MapThreadInformation<DrawnMapData> ThreadInfo = mapThreadQueue.Dequeue();
-                ThreadInfo.callback(ThreadInfo.param);  //TIME STAMP 11:00 Episode 8 for references.
+                MapThreadInformation<DrawnMapData> threadInfo = mapThreadQueue.Dequeue();
+                threadInfo.callback(threadInfo.param);
+            }
+        }
+
+        if (meshThreadQueue.Count > 0)
+        {
+            for (int i = 0; i < meshThreadQueue.Count; i++)
+            {
+                MapThreadInformation<MeshData> threadInfo = meshThreadQueue.Dequeue();
+                threadInfo.callback(threadInfo.param);
             }
         }
     }

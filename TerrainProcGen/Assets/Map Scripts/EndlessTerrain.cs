@@ -3,21 +3,30 @@ using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEngine;
 
-public class EndlessTurrain : MonoBehaviour
+public class EndlessTerrain : MonoBehaviour
 {
+    //Variables/Params for Endless Mode
     public const float MAX_VIEW_DIST = 300.0f;
-    //public int ChunksViewDistance = 4; //Use this to do view distance loading similar to LODs but with number of chunks (as a multiplier)
-    //to load around the player at a given time.
     public Transform viewerTransform;
-
     public static Vector2 viewerPos;
-
     private int aSingleChunkSize;
     private int chunksVisibleinDist;
+    
+    //public int ChunksViewDistance = 4; //Use this to do view distance loading similar to LODs but with number of chunks (as a multiplier)
+    //to load around the player at a given time.
+    
+    //Map material
+    public Material meshMaterial;
+    
+    //Endless Mode Containers
     Dictionary<Vector2, TerrainChunk> TerrainChunksDict = new Dictionary<Vector2, TerrainChunk>();
     List<TerrainChunk> TerrainChunksVisibleSinceLastUpdate = new List<TerrainChunk>();
+    
+    //Static Variables/Params
+    static NoiseMapGenerator noiseMapGenerator;
     void Start()
     {
+        noiseMapGenerator = FindFirstObjectByType<NoiseMapGenerator>();
         aSingleChunkSize = NoiseMapGenerator.mapChunkSize - 1;
         chunksVisibleinDist = Mathf.RoundToInt(MAX_VIEW_DIST / aSingleChunkSize);
     }
@@ -57,7 +66,7 @@ public class EndlessTurrain : MonoBehaviour
                 }
                 else
                 {
-                    TerrainChunksDict.Add(viewedChunkCoord, new TerrainChunk(viewedChunkCoord, aSingleChunkSize, transform));
+                    TerrainChunksDict.Add(viewedChunkCoord, new TerrainChunk(viewedChunkCoord, aSingleChunkSize, transform, meshMaterial));
                 }
             }
         }
@@ -66,22 +75,51 @@ public class EndlessTurrain : MonoBehaviour
     public class TerrainChunk
     {
         private const float DEFAULT_PLANE_SIZE = 10.0f; //default size of a plane primitive.
+        
+        //Game Object +  Components
         GameObject meshObject;
+        MeshRenderer meshRenderer;
+        MeshFilter meshFilter;
+        
         Vector2 position;
         Bounds chunkBounds;
-        public TerrainChunk(Vector2 coord, int size, Transform parentTransform)
+        public TerrainChunk(Vector2 coord, int size, Transform parentTransform, Material material)
         {
             position = coord * size;
             Vector3 posV3 = new Vector3(position.x, 0, position.y);
             chunkBounds = new Bounds(position, (Vector2.one * size));
-            
-            meshObject = GameObject.CreatePrimitive(PrimitiveType.Plane);
+
+            meshObject = new GameObject("TerrainChunk");
+            meshRenderer = meshObject.AddComponent<MeshRenderer>();
+            meshFilter = meshObject.AddComponent<MeshFilter>();
+            meshRenderer.material = material;
             meshObject.transform.position = posV3;
-            meshObject.transform.localScale = Vector3.one * size / DEFAULT_PLANE_SIZE;
+            
+            //meshObject.transform.localScale = Vector3.one * size / DEFAULT_PLANE_SIZE;  //TODO: Implement logic for if this is in non-mesh mode
             meshObject.transform.SetParent(parentTransform);
             SetVisible(false);
+            
+            //Send Map Data request
+            noiseMapGenerator.RqstMapData(OnMapDataRecvd);
+        }
+        
+        //Threading Functions for TerrainChunk Generation
+        void OnMapDataRecvd(DrawnMapData mapData)
+        {
+            //Validation for Receiving Map Data
+            print("Map data received");
+            
+            //Mesh based Logic
+            noiseMapGenerator.RqstMeshData(mapData, OnMeshDataRecvd);
         }
 
+        void OnMeshDataRecvd(MeshData meshData)
+        {
+            meshFilter.mesh = meshData.CreateMesh();
+        }
+        
+        
+        //General Functions for TerrainChunk Class
         public void UpdateChunk()
         {
             float viewerDistFromNearestEdge = Mathf.Sqrt(chunkBounds.SqrDistance(viewerPos));
