@@ -4,7 +4,7 @@ public class MeshGenerator
 {
     public static MeshData GenerateTerrainMesh(float[,] heightMap, float heightMultiplier, AnimationCurve heightCurve, int levelOfDetail)
     {
-        //Create and Animation Curve to seperate curves for each mesh instance in Threading
+        //Create an Animation Curve to create separate curves for each mesh instance during Thread processing.
         AnimationCurve iHeightCurve = new AnimationCurve(heightCurve.keys);
         
         int width = heightMap.GetLength(0);

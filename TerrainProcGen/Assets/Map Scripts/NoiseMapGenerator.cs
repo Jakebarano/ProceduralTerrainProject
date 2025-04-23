@@ -13,7 +13,8 @@ public class NoiseMapGenerator : MonoBehaviour
     //Basic Params
     public const int mapChunkSize = 241;
     [Range(0, 6)]
-    public int levelOfDetail;
+    public int levelOfDetail;                              //Editor Specific LOD "Preview"
+    
     
     //TODO: set these up to be used later depending on mode.
     // public int noiseMapWidth = 25;
@@ -48,19 +49,19 @@ public class NoiseMapGenerator : MonoBehaviour
     //Multi-threading Logic
     
     //2D map Request + Thread
-    public void RqstMapData(Action<DrawnMapData> callback)
+    public void RqstMapData( Vector2 center, Action<DrawnMapData> callback)
     {
         ThreadStart threadDelegate = delegate
         {
-            NMapDataThread(callback);
+            NMapDataThread(center, callback);
         };
         
         new Thread(threadDelegate).Start();
     }
 
-    void NMapDataThread(Action<DrawnMapData> callback)
+    void NMapDataThread(Vector2 center, Action<DrawnMapData> callback)
     {
-        DrawnMapData mData = GenerateMapData();
+        DrawnMapData mData = GenerateMapData(center);
         lock (mapThreadQueue)
         {
             mapThreadQueue.Enqueue(new MapThreadInformation<DrawnMapData>(callback, mData));
@@ -69,19 +70,19 @@ public class NoiseMapGenerator : MonoBehaviour
     
     //Mesh Request + Thread
     
-    public void RqstMeshData(DrawnMapData mapData, Action<MeshData> callback)
+    public void RqstMeshData(DrawnMapData mapData, int lod, Action<MeshData> callback)
     {
         ThreadStart threadDelegate = delegate
         {
-            MeshDataThread(mapData, callback);
+            MeshDataThread(mapData, lod, callback);
         };
         
         new Thread(threadDelegate).Start();
     }
 
-    void MeshDataThread(DrawnMapData mapData, Action<MeshData> callback)
+    void MeshDataThread(DrawnMapData mapData, int lod, Action<MeshData> callback)
     {
-        MeshData meshData = MeshGenerator.GenerateTerrainMesh(mapData.noiseMap, meshHeightMultiplier, meshHeightCurve, levelOfDetail);
+        MeshData meshData = MeshGenerator.GenerateTerrainMesh(mapData.noiseMap, meshHeightMultiplier, meshHeightCurve, lod);
         lock (meshThreadQueue)
         {
             meshThreadQueue.Enqueue(new MapThreadInformation<MeshData>(callback, meshData));
@@ -112,7 +113,7 @@ public class NoiseMapGenerator : MonoBehaviour
     //Map Data logic
     public void DrawMap()
     {
-        DrawnMapData mapData = GenerateMapData();
+        DrawnMapData mapData = GenerateMapData(Vector2.zero);
         
         ApplyMap chunk = FindFirstObjectByType<ApplyMap>();
         if (drawMode == DrawMode.NoiseMap)
@@ -136,9 +137,9 @@ public class NoiseMapGenerator : MonoBehaviour
         }
     }
     
-    DrawnMapData GenerateMapData()
+    DrawnMapData GenerateMapData(Vector2 center)
     {
-        float[,] noiseMap = CreateNoise.GenerateANoiseMap(mapChunkSize, mapChunkSize,  mapSeed, noiseScale, numOctaves, noisePersistence, lacunarity, offset);
+        float[,] noiseMap = CreateNoise.GenerateANoiseMap(mapChunkSize, mapChunkSize,  mapSeed, noiseScale, numOctaves, noisePersistence, lacunarity, center + offset);
         
         Color[] colorMap = new Color[mapChunkSize * mapChunkSize]; //1D mapping for colors
         
@@ -167,13 +168,11 @@ public class NoiseMapGenerator : MonoBehaviour
     private int octavesMinimum = 1;
     private int octavesMaximum = 28;
     private float lacunarityMinimum = 1f;
-    //private int noiseMapMinAxisSize = 1;  //Depreciated w/mapsize checks (see below) that are obsolete as well.
     
     // Editor Validation Logic
     private void OnValidate()
     {
         //Validate Param values, this is an easy approach.
-
         if (noiseScale <= 0)
         {
             noiseScale = noiseScaleMin;
@@ -193,16 +192,6 @@ public class NoiseMapGenerator : MonoBehaviour
         {
             lacunarity = lacunarityMinimum;
         }
-                
-        //Note: after the refactor for width/height these are not needed currently.
-        // if (mapChunkSize < noiseMapMinAxisSize)
-        // {
-        //     mapChunkSize = noiseMapMinAxisSize;
-        // }
-        // if (mapChunkSize < noiseMapMinAxisSize)
-        // {
-        //     mapChunkSize = noiseMapMinAxisSize;
-        // }
     }
     
     //Thread Struct
@@ -218,14 +207,10 @@ public class NoiseMapGenerator : MonoBehaviour
         }
     }
     
-    
-    //Param Getter/Setter functions Here
-    //TODO: figure out which ones to make private and make functions for getting/setting here.
-
-    private void Start()
-    {
-        GenerateMapData();
-    }
+    // private void Start()
+    // {
+    //     GenerateMapData();
+    // }
 }
 
 //Data Structs

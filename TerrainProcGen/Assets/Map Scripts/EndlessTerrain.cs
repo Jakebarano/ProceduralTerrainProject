@@ -1,72 +1,83 @@
 using System;
 using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
 
 public class EndlessTerrain : MonoBehaviour
 {
     //Variables/Params for Endless Mode
-    public const float MAX_VIEW_DIST = 300.0f;
+    public LODInfo[] detailLevelsArr;
+    public static float MaxViewDist;
+
+    private const float ViewerMoveDstDeltaForTerrUpdate = 25f;
+    private const float SqrViewerMoveDstDeltaForTerrUpdate = ViewerMoveDstDeltaForTerrUpdate * ViewerMoveDstDeltaForTerrUpdate;
     public Transform viewerTransform;
-    public static Vector2 viewerPos;
-    private int aSingleChunkSize;
-    private int chunksVisibleinDist;
+    public static Vector2 ViewerPos;
+    Vector2 oldViewerPos;
     
-    //public int ChunksViewDistance = 4; //Use this to do view distance loading similar to LODs but with number of chunks (as a multiplier)
-    //to load around the player at a given time.
+    private int _aSingleChunkSize;
+    private int _chunksVisibleInDist;
     
     //Map material
     public Material meshMaterial;
     
     //Endless Mode Containers
-    Dictionary<Vector2, TerrainChunk> TerrainChunksDict = new Dictionary<Vector2, TerrainChunk>();
-    List<TerrainChunk> TerrainChunksVisibleSinceLastUpdate = new List<TerrainChunk>();
+    Dictionary<Vector2, TerrainChunk> _terrainChunksDict = new Dictionary<Vector2, TerrainChunk>();
+    List<TerrainChunk> _terrainChunksVisibleSinceLastUpdate = new List<TerrainChunk>();
     
     //Static Variables/Params
-    static NoiseMapGenerator noiseMapGenerator;
+    static NoiseMapGenerator _noiseMapGenerator;
+    
     void Start()
     {
-        noiseMapGenerator = FindFirstObjectByType<NoiseMapGenerator>();
-        aSingleChunkSize = NoiseMapGenerator.mapChunkSize - 1;
-        chunksVisibleinDist = Mathf.RoundToInt(MAX_VIEW_DIST / aSingleChunkSize);
+        _noiseMapGenerator = FindFirstObjectByType<NoiseMapGenerator>();                         //Find the NoiseMapGenerator Object
+        MaxViewDist = detailLevelsArr[detailLevelsArr.Length - 1].visibleDstThreshold;
+        _aSingleChunkSize = NoiseMapGenerator.mapChunkSize - 1;                                  //Set Initial Single Chunk Size (241)
+        _chunksVisibleInDist = Mathf.RoundToInt(MaxViewDist / _aSingleChunkSize);             //Determine the number of Chunks to be visible in a given direction (see code below).
+        UpdateVisibleChunks();                                                                  //Call once on start to create initially viewable chunks for user.
     }
 
     void Update()
     {
-        viewerPos = new Vector2(viewerTransform.position.x, viewerTransform.position.z);
-        UpdateVisibleChunks();
+        ViewerPos = new Vector2(viewerTransform.position.x, viewerTransform.position.z);
+
+        if ((oldViewerPos - ViewerPos).sqrMagnitude > SqrViewerMoveDstDeltaForTerrUpdate)
+        {
+            oldViewerPos = ViewerPos;
+            UpdateVisibleChunks();
+        }
+        
     }
 
     void UpdateVisibleChunks()
     {
         //Remove Chunks outside the user's view distance after each update so it is not overloaded.
-        foreach (TerrainChunk chunk in TerrainChunksVisibleSinceLastUpdate)
+        foreach (TerrainChunk chunk in _terrainChunksVisibleSinceLastUpdate)
         {
             chunk.SetVisible(false);
         }
-        TerrainChunksVisibleSinceLastUpdate.Clear();
+        _terrainChunksVisibleSinceLastUpdate.Clear();
         
         //Load Chunks based on view distance of User. (View Distance should become a setting).
-        int currChunkCoordX = Mathf.RoundToInt(viewerPos.x/aSingleChunkSize);
-        int currChunkCoordY = Mathf.RoundToInt(viewerPos.y/aSingleChunkSize);
+        int currChunkCoordX = Mathf.RoundToInt(ViewerPos.x/_aSingleChunkSize);
+        int currChunkCoordY = Mathf.RoundToInt(ViewerPos.y/_aSingleChunkSize);
 
-        for (int yoffset = -chunksVisibleinDist; yoffset <= chunksVisibleinDist; yoffset++)
+        for (int yOffset = -_chunksVisibleInDist; yOffset <= _chunksVisibleInDist; yOffset++)
         {
-            for (int xoffset = -chunksVisibleinDist; xoffset <= chunksVisibleinDist; xoffset++)
+            for (int xOffset = -_chunksVisibleInDist; xOffset <= _chunksVisibleInDist; xOffset++)
             {
-                Vector2 viewedChunkCoord = new Vector2(currChunkCoordX + xoffset, currChunkCoordY + yoffset);
+                Vector2 viewedChunkCoord = new Vector2(currChunkCoordX + xOffset, currChunkCoordY + yOffset);
 
-                if (TerrainChunksDict.ContainsKey(viewedChunkCoord))
+                if (_terrainChunksDict.ContainsKey(viewedChunkCoord))
                 {
-                    TerrainChunksDict[viewedChunkCoord].UpdateChunk();
-                    if (TerrainChunksDict[viewedChunkCoord].isVisible())
+                    _terrainChunksDict[viewedChunkCoord].UpdateChunk();
+                    if (_terrainChunksDict[viewedChunkCoord].IsVisible())
                     {
-                        TerrainChunksVisibleSinceLastUpdate.Add(TerrainChunksDict[viewedChunkCoord]);
+                        _terrainChunksVisibleSinceLastUpdate.Add(_terrainChunksDict[viewedChunkCoord]);
                     }
                 }
                 else
                 {
-                    TerrainChunksDict.Add(viewedChunkCoord, new TerrainChunk(viewedChunkCoord, aSingleChunkSize, transform, meshMaterial));
+                    _terrainChunksDict.Add(viewedChunkCoord, new TerrainChunk(viewedChunkCoord, _aSingleChunkSize, detailLevelsArr,transform, meshMaterial));
                 }
             }
         }
@@ -77,64 +88,151 @@ public class EndlessTerrain : MonoBehaviour
         private const float DEFAULT_PLANE_SIZE = 10.0f; //default size of a plane primitive.
         
         //Game Object +  Components
-        GameObject meshObject;
-        MeshRenderer meshRenderer;
-        MeshFilter meshFilter;
+        GameObject _meshObject;
+        MeshRenderer _meshRenderer;
+        MeshFilter _meshFilter;
         
         Vector2 position;
-        Bounds chunkBounds;
-        public TerrainChunk(Vector2 coord, int size, Transform parentTransform, Material material)
+        Bounds _chunkBounds;
+        
+        LODInfo[] _detailLevels;
+        MeshLOD[] _lodMeshes;
+        
+        DrawnMapData _mapData;
+        private bool _mapDataRecved;
+        private int _previousLODIndex = -1;
+        
+        public TerrainChunk(Vector2 coord, int size, LODInfo[] detailLevels, Transform parentTransform, Material material)
         {
+            this._detailLevels = detailLevels;
+            
             position = coord * size;
             Vector3 posV3 = new Vector3(position.x, 0, position.y);
-            chunkBounds = new Bounds(position, (Vector2.one * size));
+            _chunkBounds = new Bounds(position, (Vector2.one * size));
 
-            meshObject = new GameObject("TerrainChunk");
-            meshRenderer = meshObject.AddComponent<MeshRenderer>();
-            meshFilter = meshObject.AddComponent<MeshFilter>();
-            meshRenderer.material = material;
-            meshObject.transform.position = posV3;
+            _meshObject = new GameObject("TerrainChunk");
+            _meshRenderer = _meshObject.AddComponent<MeshRenderer>();
+            _meshFilter = _meshObject.AddComponent<MeshFilter>();
+            _meshRenderer.material = material;
+            _meshObject.transform.position = posV3;
             
             //meshObject.transform.localScale = Vector3.one * size / DEFAULT_PLANE_SIZE;  //TODO: Implement logic for if this is in non-mesh mode
-            meshObject.transform.SetParent(parentTransform);
+            _meshObject.transform.SetParent(parentTransform);
             SetVisible(false);
             
+            //Create Mesh LODs
+            _lodMeshes = new MeshLOD[detailLevels.Length];
+            for (int i = 0; i < detailLevels.Length; i++)
+            {
+                _lodMeshes[i] = new MeshLOD(detailLevels[i].lod, UpdateChunk);
+            }
+            
             //Send Map Data request
-            noiseMapGenerator.RqstMapData(OnMapDataRecvd);
-        }
+            _noiseMapGenerator.RqstMapData(position, OnMapDataRecvd);
+        } 
         
         //Threading Functions for TerrainChunk Generation
         void OnMapDataRecvd(DrawnMapData mapData)
         {
-            //Validation for Receiving Map Data
+            //Validation for Receiving Map Data function call success NOT actual validation of data.
             print("Map data received");
             
             //Mesh based Logic
-            noiseMapGenerator.RqstMeshData(mapData, OnMeshDataRecvd);
-        }
+            this._mapData = mapData;
+            _mapDataRecved = true;
 
-        void OnMeshDataRecvd(MeshData meshData)
-        {
-            meshFilter.mesh = meshData.CreateMesh();
+            Texture2D tex = MapTextureGenerator.TextureFromColorMap(mapData.colorMap, NoiseMapGenerator.mapChunkSize, NoiseMapGenerator.mapChunkSize);
+            _meshRenderer.material.mainTexture = tex;
+            
+            UpdateChunk();
         }
-        
         
         //General Functions for TerrainChunk Class
         public void UpdateChunk()
         {
-            float viewerDistFromNearestEdge = Mathf.Sqrt(chunkBounds.SqrDistance(viewerPos));
-            bool visibile = viewerDistFromNearestEdge <= MAX_VIEW_DIST;
-            SetVisible(visibile);
+            //Recieve Check
+            if (_mapDataRecved)
+            {
+                //Directional Checks for visible chunks & LOD levels
+                float viewerDistFromNearestEdge = Mathf.Sqrt(_chunkBounds.SqrDistance(ViewerPos));
+                bool visible = viewerDistFromNearestEdge <= MaxViewDist;
+
+                if (visible)
+                {
+                    int lodIndex = 0;
+
+                    for (int i = 0; i < _detailLevels.Length - 1; i++)
+                    {
+                        if (viewerDistFromNearestEdge > _detailLevels[i].visibleDstThreshold)
+                            lodIndex = i + 1;
+                        else
+                            break;
+                    }
+                    
+                    if (lodIndex != _previousLODIndex)
+                    {
+                        MeshLOD lodMesh = _lodMeshes[lodIndex];
+                        if (lodMesh.hasMesh)
+                        {
+                            _previousLODIndex = lodIndex;
+                            _meshFilter.mesh = lodMesh.mesh;
+                        }
+                        else if (!lodMesh.hasRqstedMesh)
+                        {
+                            lodMesh.RqstMeshData(_mapData);
+                        }
+                    }
+                }
+
+                SetVisible(visible);
+            }
         }
         
         //Visibility functions for all terrain chunks.
         public void SetVisible(bool visible)
         {
-            meshObject.SetActive(visible);
+            _meshObject.SetActive(visible);
         }
-        public bool isVisible()
+        public bool IsVisible()
         {
-            return meshObject.activeSelf;
+            return _meshObject.activeSelf;
         }
+    }
+    
+    //Endless Mode LOD
+    class MeshLOD
+    {
+        public Mesh mesh;
+        public bool hasRqstedMesh;
+        public bool hasMesh;
+        int _lod;                                           //Might need to use this when in endless mode, and the "levelofDetail" variable when in single chunk mode.
+
+        Action updateCallback;
+        
+        public MeshLOD(int lod, Action updateCallback)
+        {
+            this._lod = lod;
+            this.updateCallback = updateCallback;
+        }
+
+        void OnMeshDataRecvd(MeshData meshData)
+        {
+            mesh = meshData.CreateMesh();
+            hasMesh = true;
+            updateCallback();
+        }
+
+        public void RqstMeshData(DrawnMapData mapData)
+        {
+            hasRqstedMesh = true;
+            _noiseMapGenerator.RqstMeshData(mapData, _lod, OnMeshDataRecvd);
+        }
+    }
+
+    [Serializable]
+    public struct LODInfo
+    {
+        public int lod;
+        public float visibleDstThreshold;
     }
 }
