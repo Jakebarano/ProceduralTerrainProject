@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class EndlessTerrain : MonoBehaviour
 {
+    private const float GlobalScale = 1f;
     //Variables/Params for Endless Mode
     public LODInfo[] detailLevelsArr;
     public static float MaxViewDist;
@@ -22,11 +23,15 @@ public class EndlessTerrain : MonoBehaviour
     
     //Endless Mode Containers
     Dictionary<Vector2, TerrainChunk> _terrainChunksDict = new Dictionary<Vector2, TerrainChunk>();
-    List<TerrainChunk> _terrainChunksVisibleSinceLastUpdate = new List<TerrainChunk>();
+    public static List<TerrainChunk> _terrainChunksVisibleSinceLastUpdate = new List<TerrainChunk>();
     
     //Static Variables/Params
     static NoiseMapGenerator _noiseMapGenerator;
-    
+
+    public void ForceLastVisibleChunksDictReset()
+    {
+        _terrainChunksVisibleSinceLastUpdate.Clear();
+    }
     void Start()
     {
         _noiseMapGenerator = FindFirstObjectByType<NoiseMapGenerator>();                         //Find the NoiseMapGenerator Object
@@ -38,17 +43,16 @@ public class EndlessTerrain : MonoBehaviour
 
     void Update()
     {
-        ViewerPos = new Vector2(viewerTransform.position.x, viewerTransform.position.z);
+        ViewerPos = new Vector2(viewerTransform.position.x, viewerTransform.position.z) / GlobalScale;
 
         if ((oldViewerPos - ViewerPos).sqrMagnitude > SqrViewerMoveDstDeltaForTerrUpdate)
         {
             oldViewerPos = ViewerPos;
             UpdateVisibleChunks();
         }
-        
     }
 
-    void UpdateVisibleChunks()
+    public void UpdateVisibleChunks()
     {
         //Remove Chunks outside the user's view distance after each update so it is not overloaded.
         foreach (TerrainChunk chunk in _terrainChunksVisibleSinceLastUpdate)
@@ -70,10 +74,6 @@ public class EndlessTerrain : MonoBehaviour
                 if (_terrainChunksDict.ContainsKey(viewedChunkCoord))
                 {
                     _terrainChunksDict[viewedChunkCoord].UpdateChunk();
-                    if (_terrainChunksDict[viewedChunkCoord].IsVisible())
-                    {
-                        _terrainChunksVisibleSinceLastUpdate.Add(_terrainChunksDict[viewedChunkCoord]);
-                    }
                 }
                 else
                 {
@@ -104,7 +104,7 @@ public class EndlessTerrain : MonoBehaviour
         
         public TerrainChunk(Vector2 coord, int size, LODInfo[] detailLevels, Transform parentTransform, Material material)
         {
-            this._detailLevels = detailLevels;
+            _detailLevels = detailLevels;
             
             position = coord * size;
             Vector3 posV3 = new Vector3(position.x, 0, position.y);
@@ -114,7 +114,9 @@ public class EndlessTerrain : MonoBehaviour
             _meshRenderer = _meshObject.AddComponent<MeshRenderer>();
             _meshFilter = _meshObject.AddComponent<MeshFilter>();
             _meshRenderer.material = material;
-            _meshObject.transform.position = posV3;
+            
+            _meshObject.transform.position = posV3 * GlobalScale;
+            _meshObject.transform.localScale = Vector3.one * GlobalScale;
             
             //meshObject.transform.localScale = Vector3.one * size / DEFAULT_PLANE_SIZE;  //TODO: Implement logic for if this is in non-mesh mode
             _meshObject.transform.SetParent(parentTransform);
@@ -182,9 +184,14 @@ public class EndlessTerrain : MonoBehaviour
                             lodMesh.RqstMeshData(_mapData);
                         }
                     }
+                    _terrainChunksVisibleSinceLastUpdate.Add(this);
                 }
 
                 SetVisible(visible);
+            }
+            else
+            {
+                
             }
         }
         

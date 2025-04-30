@@ -1,24 +1,28 @@
 using System;
 using System.Threading;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Serialization;
+using UnityEngine.UI;
 
 public class NoiseMapGenerator : MonoBehaviour
 {
     //Generation Mode
-    public enum DrawMode {NoiseMap, ColorMap, Mesh, Voxel} //leave a third option as the voxel mode.
+    public enum DrawMode {NoiseMap, ColorMap, Mesh, Falloff} //leave a third option as the voxel mode. //Voxel
     public DrawMode drawMode;
+    public CreateNoise.NormalizationMode normalizationMode;
+    public GameObject noiseMapChunk;    //Single Mesh Chunk for non-endless
+    public GameObject noiseMap2D;       //Single 2D plane for Noise and color mode
+    private bool isEndlessModeOn = false;
+    public bool useFalloff = false;
+    public GameObject viewer;
+    [SerializeField] private Toggle Endlesstoggle;
     
     //Basic Params
     public const int mapChunkSize = 241;
     [Range(0, 6)]
     public int levelOfDetail;                              //Editor Specific LOD "Preview"
-    
-    
-    //TODO: set these up to be used later depending on mode.
-    // public int noiseMapWidth = 25;
-    // public int noiseMapHeight = 25;
     
     public float noiseScale = 0.03f;
     
@@ -36,6 +40,7 @@ public class NoiseMapGenerator : MonoBehaviour
     //Editor/GUI/UI params
     public bool autoUpdate  = true;
     public TerrainData[] terrainRegions;
+    private float[,] falloffMap;
     
     //Thread Queue + general params
     Queue<MapThreadInformation<DrawnMapData>> mapThreadQueue = new Queue<MapThreadInformation<DrawnMapData>>();
@@ -44,6 +49,96 @@ public class NoiseMapGenerator : MonoBehaviour
     public void ToggleAutoUpdate()
     {
         autoUpdate = !autoUpdate;
+    }
+
+    public void ToggleEndlessModeOn()
+    {
+        isEndlessModeOn = !isEndlessModeOn;
+        
+        if (isEndlessModeOn == true)
+        {
+            noiseMapChunk.SetActive(false);
+            GetComponent<EndlessTerrain>().enabled = true;
+            GetComponent<EndlessTerrain>().UpdateVisibleChunks();
+        }
+        else if (isEndlessModeOn == false)
+        {
+            noiseMapChunk.SetActive(true);
+            GetComponent<EndlessTerrain>().enabled = false;
+            
+            foreach(Transform child in this.transform)
+            {
+                child.gameObject.SetActive(false);
+                GetComponent<EndlessTerrain>().ForceLastVisibleChunksDictReset();
+            }
+
+            viewer.transform.position = new Vector3(0, 100, 0);
+        }
+        
+        Debug.Log(isEndlessModeOn.ToString());
+    }
+    
+    public void SetDrawMode(int mode)
+    {
+        drawMode = (DrawMode)mode;
+        Debug.Log(drawMode.ToString());
+
+        if (isEndlessModeOn == false)
+        {
+            if (drawMode == DrawMode.ColorMap || drawMode == DrawMode.NoiseMap)
+            {
+                noiseMapChunk.SetActive(false);
+                noiseMap2D.SetActive(true);
+            }
+            else if (drawMode == DrawMode.Mesh || drawMode == DrawMode.Falloff)
+            {
+                noiseMapChunk.SetActive(true);
+                noiseMap2D.SetActive(false);
+            }
+        }
+        else if (isEndlessModeOn)
+        {
+            if (drawMode == DrawMode.ColorMap || drawMode == DrawMode.NoiseMap)
+            {
+                noiseMapChunk.SetActive(false);
+                noiseMap2D.SetActive(true);
+            
+                GetComponent<EndlessTerrain>().enabled = false;
+            
+                foreach(Transform child in this.transform)
+                {
+                    child.gameObject.SetActive(false);
+                }
+                GetComponent<EndlessTerrain>().ForceLastVisibleChunksDictReset();
+                //TODO: Needs to update UI button state
+                ToggleEndlessModeOn();
+                Endlesstoggle.isOn = isEndlessModeOn;
+            }
+            if (drawMode == DrawMode.Mesh)
+            {
+                noiseMapChunk.SetActive(false);
+                noiseMap2D.SetActive(false);
+                
+                GetComponent<EndlessTerrain>().enabled = true;
+                GetComponent<EndlessTerrain>().UpdateVisibleChunks();
+            }
+
+            if (drawMode == DrawMode.Falloff)
+            {
+                noiseMapChunk.SetActive(true);
+                noiseMap2D.SetActive(false);
+            
+                GetComponent<EndlessTerrain>().enabled = false;
+            
+                foreach(Transform child in this.transform)
+                {
+                    child.gameObject.SetActive(false);
+                }
+                GetComponent<EndlessTerrain>().ForceLastVisibleChunksDictReset();
+                ToggleEndlessModeOn();
+                Endlesstoggle.isOn = isEndlessModeOn;
+            }
+        }
     }
 
     //Multi-threading Logic
@@ -76,7 +171,6 @@ public class NoiseMapGenerator : MonoBehaviour
         {
             MeshDataThread(mapData, lod, callback);
         };
-        
         new Thread(threadDelegate).Start();
     }
 
@@ -86,27 +180,6 @@ public class NoiseMapGenerator : MonoBehaviour
         lock (meshThreadQueue)
         {
             meshThreadQueue.Enqueue(new MapThreadInformation<MeshData>(callback, meshData));
-        }
-    }
-
-    void Update()
-    {
-        if (mapThreadQueue.Count > 0)
-        {
-            for (int i = 0; i < mapThreadQueue.Count; i++)
-            {
-                MapThreadInformation<DrawnMapData> threadInfo = mapThreadQueue.Dequeue();
-                threadInfo.callback(threadInfo.param);
-            }
-        }
-
-        if (meshThreadQueue.Count > 0)
-        {
-            for (int i = 0; i < meshThreadQueue.Count; i++)
-            {
-                MapThreadInformation<MeshData> threadInfo = meshThreadQueue.Dequeue();
-                threadInfo.callback(threadInfo.param);
-            }
         }
     }
     
@@ -131,15 +204,15 @@ public class NoiseMapGenerator : MonoBehaviour
             chunk.DrawMesh(MeshGenerator.GenerateTerrainMesh(mapData.noiseMap, meshHeightMultiplier, meshHeightCurve, levelOfDetail), MapTextureGenerator.TextureFromColorMap(mapData.colorMap, mapChunkSize, mapChunkSize));
         }
 
-        if (drawMode == DrawMode.Voxel)
+        if (drawMode == DrawMode.Falloff)
         {
-            //TODO: Setup Voxels and do a voxel mode.
+            chunk.DrawMapTexture(MapTextureGenerator.TextureFromHeightMap(FalloffEdgeGenerator.GenerateFOMap(mapChunkSize)));
         }
     }
     
     DrawnMapData GenerateMapData(Vector2 center)
     {
-        float[,] noiseMap = CreateNoise.GenerateANoiseMap(mapChunkSize, mapChunkSize,  mapSeed, noiseScale, numOctaves, noisePersistence, lacunarity, center + offset);
+        float[,] noiseMap = CreateNoise.GenerateANoiseMap(mapChunkSize, mapChunkSize,  mapSeed, noiseScale, numOctaves, noisePersistence, lacunarity, center + offset, normalizationMode, isEndlessModeOn);
         
         Color[] colorMap = new Color[mapChunkSize * mapChunkSize]; //1D mapping for colors
         
@@ -147,14 +220,22 @@ public class NoiseMapGenerator : MonoBehaviour
         {
             for (int x = 0; x < mapChunkSize; x++)
             {
+                if (useFalloff)
+                {
+                    noiseMap[x,y] = Mathf.Clamp01(noiseMap[x,y] - falloffMap[x, y]);
+                }
+                
                 //set the current heights
                 float currentHeight = noiseMap[x, y];
                 
                 for (int i = 0; i < terrainRegions.Length; i++)
                 {
-                    if (currentHeight < terrainRegions[i].height)
+                    if (currentHeight >= terrainRegions[i].height)
                     {
                         colorMap[y * mapChunkSize + x] = terrainRegions[i].tColor;
+                    }
+                    else
+                    {
                         break;
                     }
                 }
@@ -192,6 +273,8 @@ public class NoiseMapGenerator : MonoBehaviour
         {
             lacunarity = lacunarityMinimum;
         }
+
+        falloffMap = FalloffEdgeGenerator.GenerateFOMap(mapChunkSize);
     }
     
     //Thread Struct
@@ -207,10 +290,39 @@ public class NoiseMapGenerator : MonoBehaviour
         }
     }
     
-    // private void Start()
-    // {
-    //     GenerateMapData();
-    // }
+    
+    void Update()
+    {
+        if (isEndlessModeOn)
+        {
+            if (mapThreadQueue.Count > 0)
+            {
+                for (int i = 0; i < mapThreadQueue.Count; i++)
+                {
+                    MapThreadInformation<DrawnMapData> threadInfo = mapThreadQueue.Dequeue();
+                    threadInfo.callback(threadInfo.param);
+                }
+            }
+
+            if (meshThreadQueue.Count > 0)
+            {
+                for (int i = 0; i < meshThreadQueue.Count; i++)
+                {
+                    MapThreadInformation<MeshData> threadInfo = meshThreadQueue.Dequeue();
+                    threadInfo.callback(threadInfo.param);
+                }
+            }
+        }
+    }
+
+    void Awake()
+    {
+        falloffMap = FalloffEdgeGenerator.GenerateFOMap(mapChunkSize);
+    }
+
+    private void Start()
+   {
+   }
 }
 
 //Data Structs
